@@ -10,6 +10,7 @@ import com.bsf.vcloud.entity.Video;
 import com.bsf.vcloud.enums.VideoStatus;
 import com.bsf.vcloud.exceptions.ResourceNotFoundException;
 import com.bsf.vcloud.exceptions.StorageException;
+import com.bsf.vcloud.exceptions.UnauthorizedActionException;
 import com.bsf.vcloud.exceptions.VideoUploadException;
 import com.bsf.vcloud.mapper.VideoMapper;
 import com.bsf.vcloud.repository.UserRepository;
@@ -87,7 +88,7 @@ public class VideoService {
     public void deleteVideo(String keyName, UUID userId){
         Video video = videoRepository.findByKeyName(keyName).orElseThrow(() -> new ResourceNotFoundException("Video Not Found")) ;
         if (!video.getUser().getId().equals(userId)){
-            throw new VideoUploadException("You are not authorized to delete this video");
+            throw new UnauthorizedActionException("You are not authorized to delete this video");
         }
 
         try {
@@ -155,7 +156,7 @@ public class VideoService {
     public List<URL> generateMultipartPresignedUrl(String uploadId, Integer partQuantity, VideoRequestDTO videoRequestDTO)  {
 
         Video video = videoRepository.findByUploadId(uploadId)
-                .orElseThrow(() -> new RuntimeException("Video not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Video not found"));
 
        List<URL> presignedUrls = new ArrayList<>();
        for (int i = 1; i <= partQuantity; i++) {

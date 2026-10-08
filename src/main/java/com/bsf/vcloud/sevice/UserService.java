@@ -4,6 +4,9 @@ import com.bsf.vcloud.dtos.user.UserRequestDTO;
 import com.bsf.vcloud.dtos.user.UserResponseDTO;
 import com.bsf.vcloud.entity.Users;
 import com.bsf.vcloud.exceptions.BusinessRuleException;
+import com.bsf.vcloud.exceptions.ResourceNotFoundException;
+import com.bsf.vcloud.exceptions.UnauthorizedActionException;
+import com.bsf.vcloud.exceptions.VideoUploadException;
 import com.bsf.vcloud.mapper.UserMapper;
 import com.bsf.vcloud.repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -46,7 +49,7 @@ public class UserService {
     @Transactional
     public UserResponseDTO getById(UUID id) {
         return UserMapper.toDto(userRepository.findById(id).orElseThrow(
-                () -> new RuntimeException("User not found")));
+                () -> new ResourceNotFoundException("User not found")));
     }
     @Transactional
     public List<UserResponseDTO> getAll(){
@@ -58,13 +61,13 @@ public class UserService {
 
     public UserResponseDTO update(UUID id, UserResponseDTO UserResponseDTO, UUID authUserId) {
         if (!id.equals(authUserId)) {
-            throw new RuntimeException("You can only update your own user data");
+            throw new UnauthorizedActionException("You can only update your own user data");
         }
         Users user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         if (userRepository.existsByEmail(UserResponseDTO.email())) {
-            throw new BusinessRuleException("Email already in use"); // TODO: criar exception especifica
+            throw new BusinessRuleException("Email already in use");
         }
 
         user.setEmail(UserResponseDTO.email());
@@ -80,10 +83,10 @@ public class UserService {
 
     public void deleteById(UUID id, UUID authUserId) {
         if (!id.equals(authUserId)) {
-            throw new RuntimeException("You can only delete your own user");
+            throw new UnauthorizedActionException("You can only delete your own user");
         }
         Users user = userRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         userRepository.delete(user);
     }

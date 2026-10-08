@@ -99,4 +99,17 @@ public class GlobalExceptionalHandler {
         );
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(exception);
     }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ExceptionDTO> handleIllegalArgumentException (IllegalArgumentException ex, HttpServletRequest request){
+        ExceptionDTO exception = new ExceptionDTO(
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                ex.getMessage(),
+                request.getRequestURI(),
+                LocalDateTime.now(),
+                null
+        );
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(exception);
+    }
 }
