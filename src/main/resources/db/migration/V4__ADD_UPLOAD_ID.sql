@@ -1,0 +1,2 @@
+ALTER TABLE videos
+    ADD COLUMN upload_id VARCHAR(255);

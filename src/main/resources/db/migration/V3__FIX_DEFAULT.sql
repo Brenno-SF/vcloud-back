@@ -1,0 +1,8 @@
+ALTER TABLE videos
+    ALTER COLUMN id SET DEFAULT uuidv7();
+
+ALTER TABLE users
+    ALTER COLUMN id SET DEFAULT uuidv7();
+
+ALTER TABLE videos
+    ALTER COLUMN s3_key DROP NOT NULL;
