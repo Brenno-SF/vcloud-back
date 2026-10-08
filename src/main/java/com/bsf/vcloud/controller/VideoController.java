@@ -6,15 +6,13 @@ import com.bsf.vcloud.dtos.video.VideoRequestDTO;
 import com.bsf.vcloud.dtos.video.VideoResponseDTO;
 import com.bsf.vcloud.sevice.VideoService;
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.UUID;
@@ -29,11 +27,11 @@ public class VideoController {
         this.videoService = videoService;
     }
 
-    @PostMapping("/upload")
-    @ResponseStatus(HttpStatus.CREATED)
-    public VideoResponseDTO uploadVideo(@RequestParam("file") MultipartFile file, @RequestParam("userId") UUID userId)  {
-        return videoService.uploadVideo(file, userId);
-    }
+//    @PostMapping("/upload")
+//    @ResponseStatus(HttpStatus.CREATED)
+//    public VideoResponseDTO uploadVideo(@RequestParam("file") MultipartFile file, @RequestParam("userId") UUID userId)  {
+//        return videoService.uploadVideo(file, userId);
+//    }
 
     @GetMapping()
     @ResponseStatus(HttpStatus.OK)
@@ -70,5 +68,11 @@ public class VideoController {
     @ResponseStatus(HttpStatus.OK)
     public VideoResponseDTO completeSinglePartUpload(@PathVariable UUID videoId)  {
         return videoService.completeSinglePartUpload(videoId);
+    }
+
+    @DeleteMapping("delete/{keyname}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteVideo(@PathVariable String keyname, @AuthenticationPrincipal Jwt jwt)  {
+        videoService.deleteVideo(keyname, UUID.fromString(jwt.getClaimAsString("userId")));
     }
 }

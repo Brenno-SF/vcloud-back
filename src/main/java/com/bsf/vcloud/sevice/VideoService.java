@@ -19,10 +19,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 
-import java.io.IOException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
+
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -84,8 +84,18 @@ public class VideoService {
     }
 
 
-    public void deleteVideo(String keyName){
-        storageAdapter.deleteVideo(keyName);
+    public void deleteVideo(String keyName, UUID userId){
+        Video video = videoRepository.findByKeyName(keyName).orElseThrow(() -> new ResourceNotFoundException("Video Not Found")) ;
+        if (!video.getUser().getId().equals(userId)){
+            throw new VideoUploadException("You are not authorized to delete this video");
+        }
+
+        try {
+            storageAdapter.deleteVideo(keyName);
+            videoRepository.delete(video);
+        }catch (StorageException e){
+            throw new VideoUploadException("Failed to delete video from storage", e);
+        }
     }
 
     @Transactional
