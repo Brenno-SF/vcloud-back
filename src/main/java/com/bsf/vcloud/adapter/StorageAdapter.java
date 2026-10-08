@@ -17,6 +17,7 @@ import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.*;
 import software.amazon.awssdk.services.s3.presigner.S3Presigner;
+import software.amazon.awssdk.services.s3.presigner.model.GetObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PresignedUploadPartRequest;
 import software.amazon.awssdk.services.s3.presigner.model.PutObjectPresignRequest;
 import software.amazon.awssdk.services.s3.presigner.model.UploadPartPresignRequest;
@@ -168,6 +169,27 @@ public class StorageAdapter implements StoragePort {
             log.error("AWS SDK failed to complete multipart upload. " +"videoId={}, uploadId={}, key={}",video.getId(),uploadId,video.getPath(),e);
 
             throw new StorageException("Unable to communicate with S3",e);
+        }
+    }
+
+    @Override
+    public URL generateDownloadUrl(Video video) {
+
+        try {
+            GetObjectRequest objectRequest = GetObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(video.getKeyName())
+                    .build();
+
+            GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
+                    .signatureDuration(Duration.ofMinutes(15))
+                    .getObjectRequest(objectRequest)
+                    .build();
+
+            return s3Presigner.presignGetObject(presignRequest).url();
+        }catch (SdkException e){
+            log.error("Failed to generate download URL for video {}: {}", video.getId(), e.getMessage());
+            throw new StorageException("Failed to generate download URL", e);
         }
     }
 

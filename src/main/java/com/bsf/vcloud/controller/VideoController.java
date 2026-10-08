@@ -7,11 +7,11 @@ import com.bsf.vcloud.dtos.video.VideoResponseDTO;
 import com.bsf.vcloud.sevice.VideoService;
 import jakarta.validation.Valid;
 
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URL;
 import java.util.List;
@@ -74,5 +74,14 @@ public class VideoController {
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteVideo(@PathVariable String keyname, @AuthenticationPrincipal Jwt jwt)  {
         videoService.deleteVideo(keyname, UUID.fromString(jwt.getClaimAsString("userId")));
+    }
+
+    @GetMapping("download/{videoId}/{keyName}")
+    @ResponseStatus(HttpStatus.FOUND)
+    public void downloadVideo(@PathVariable UUID videoId, @PathVariable String keyName, @AuthenticationPrincipal Jwt jwt)  {
+        URL url = videoService.generateDownload(videoId, keyName, UUID.fromString(jwt.getClaimAsString("userId")));
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.add("Location", url.toString());
     }
 }

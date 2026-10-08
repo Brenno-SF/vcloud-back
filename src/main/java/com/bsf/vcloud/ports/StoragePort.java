@@ -15,4 +15,5 @@ public interface StoragePort {
     String startMultipartUpload(Video video) ;
     URL generateMultipartPresignedUrl(String uploadId, Integer partNumber, Video video) ;
     void completeMultipartUpload(String uploadId, Video video, List<CompletedPart> completedParts) ;
+    URL generateDownloadUrl(Video video);
 }

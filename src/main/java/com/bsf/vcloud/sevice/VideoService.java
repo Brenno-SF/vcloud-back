@@ -198,4 +198,19 @@ public class VideoService {
 
     }
 
+    public URL generateDownload(UUID videoId, String keyName, UUID userId) {
+
+        Video video = videoRepository.findById(videoId).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
+
+        if (!video.getUser().getId().equals(userId)){
+            throw new VideoUploadException("You are not authorized to download this video");
+        }
+
+        if (!video.getKeyName().equals(keyName)){
+            throw new VideoUploadException("Key name does not match with video");
+        }
+
+        return storageAdapter.generateDownloadUrl(video);
+
+    }
 }
