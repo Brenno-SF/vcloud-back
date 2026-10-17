@@ -8,6 +8,9 @@ import com.bsf.vcloud.dtos.video.VideoResponseDTO;
 import com.bsf.vcloud.sevice.VideoService;
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -38,8 +41,8 @@ public class VideoController {
 
     @GetMapping()
     @ResponseStatus(HttpStatus.OK)
-    public List<VideoResponseDTO> getVideos( @AuthenticationPrincipal Jwt jwt) {
-        return videoService.getVideosByUserId(UUID.fromString(jwt.getClaimAsString("userId")));
+    public Page<VideoResponseDTO> getVideos(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @AuthenticationPrincipal Jwt jwt) {
+        return videoService.getVideosByUserId(UUID.fromString(jwt.getClaimAsString("userId")), PageRequest.of(page, size));
     }
 
     @PostMapping("/upload-single-presigned-url")

@@ -20,6 +20,8 @@ import com.bsf.vcloud.repository.VideoRepository;
 import jakarta.transaction.Transactional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 
@@ -76,25 +78,24 @@ public class VideoService {
 //        }
 //    }
 
-    //TODO: Add pagination and sorting
-    @Cacheable(cacheNames = "userVideos", key = "#userId")
-    public List<VideoResponseDTO> getVideosByUserId(UUID userId) {
+    //TODO: Add and sorting
+    // @Cacheable(cacheNames = "userVideos", key = "#userId + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
+    public Page<VideoResponseDTO> getVideosByUserId(UUID userId, Pageable pageable) {
 
         if(!userRepository.existsById(userId)){
             throw new ResourceNotFoundException("User not found");
         }
-        List<Video> videos = videoRepository.findByUserId(userId);
-        return videos.stream()
-                .map(video -> {
-                    URL thumbnailUrl = null;
+        Page<Video> videos = videoRepository.findByUserId(userId, pageable);
 
-                    if (video.getThumbnailKey() != null) {
-                        thumbnailUrl = storageAdapter.generateThumbnailViewUrl(video.getThumbnailKey().toString());
-                    }
+        return videos.map(video -> {
+            URL thumbnailUrl = null;
 
-                    return VideoMapper.toDto(video, thumbnailUrl);
-                })
-                .toList();
+            if (video.getThumbnailKey() != null) {
+                thumbnailUrl = storageAdapter.generateThumbnailViewUrl(video.getThumbnailKey().toString());
+            }
+
+            return VideoMapper.toDto(video, thumbnailUrl);
+        });
     }
 
     @CacheEvict(value = "userVideos", key = "#userId")
