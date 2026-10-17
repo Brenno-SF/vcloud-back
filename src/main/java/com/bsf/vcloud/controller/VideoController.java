@@ -1,6 +1,7 @@
 package com.bsf.vcloud.controller;
 
 import com.bsf.vcloud.dtos.upload.CompletedUploadDTO;
+import com.bsf.vcloud.dtos.upload.MultipartUploadResponse;
 import com.bsf.vcloud.dtos.upload.PresignedUploadResponse;
 import com.bsf.vcloud.dtos.video.VideoRequestDTO;
 import com.bsf.vcloud.dtos.video.VideoResponseDTO;
@@ -9,11 +10,13 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 
 import java.net.URL;
+import java.net.http.HttpResponse;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,7 +56,7 @@ public class VideoController {
 
     @PostMapping("/generate-multipart-presigned-url/{partNumbers}/{uploadId}")
     @ResponseStatus(HttpStatus.OK)
-    public List<URL> multipartUpload(@Valid @RequestBody VideoRequestDTO videoRequestDTO, @PathVariable Integer partNumbers, @PathVariable String uploadId )  {
+    public MultipartUploadResponse multipartUpload(@Valid @RequestBody VideoRequestDTO videoRequestDTO, @PathVariable Integer partNumbers, @PathVariable String uploadId )  {
         return videoService.generateMultipartPresignedUrl(uploadId, partNumbers,videoRequestDTO);
     }
 
@@ -70,18 +73,15 @@ public class VideoController {
         return videoService.completeSinglePartUpload(videoId);
     }
 
-    @DeleteMapping("delete/{keyname}")
+    @DeleteMapping("delete/{videoId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteVideo(@PathVariable String keyname, @AuthenticationPrincipal Jwt jwt)  {
-        videoService.deleteVideo(keyname, UUID.fromString(jwt.getClaimAsString("userId")));
+    public void deleteVideo(@PathVariable UUID videoId, @AuthenticationPrincipal Jwt jwt)  {
+        videoService.deleteVideo(videoId, UUID.fromString(jwt.getClaimAsString("userId")));
     }
 
-    @GetMapping("download/{videoId}/{keyName}")
-    @ResponseStatus(HttpStatus.FOUND)
-    public void downloadVideo(@PathVariable UUID videoId, @PathVariable String keyName, @AuthenticationPrincipal Jwt jwt)  {
-        URL url = videoService.generateDownload(videoId, keyName, UUID.fromString(jwt.getClaimAsString("userId")));
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.add("Location", url.toString());
+    @GetMapping("download/{videoId}")
+    @ResponseStatus(HttpStatus.OK)
+    public String downloadVideo(@PathVariable UUID videoId, @AuthenticationPrincipal Jwt jwt)  {
+        return videoService.generateDownload(videoId, UUID.fromString(jwt.getClaimAsString("userId"))).toString();
     }
 }

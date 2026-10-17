@@ -48,6 +48,9 @@ public class Video {
     @JoinColumn(name = "user_id")
     private Users user;
 
+    @Column(name = "thumbnail_key")
+    private String thumbnailKey;
+
     @PrePersist
     void prePersist() {
         this.createdAt = LocalDateTime.now();

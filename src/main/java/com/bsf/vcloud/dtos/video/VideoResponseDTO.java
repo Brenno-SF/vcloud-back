@@ -3,24 +3,17 @@ package com.bsf.vcloud.dtos.video;
 import com.bsf.vcloud.entity.Video;
 import com.bsf.vcloud.enums.VideoStatus;
 
+import java.net.URL;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 public record VideoResponseDTO(
+         UUID id,
          String originalFilename,
          String contentType,
          Long sizeBytes,
          VideoStatus status,
          LocalDateTime createdAt,
-         LocalDateTime updatedAt
-) {
-    public VideoResponseDTO(Video video) {
-        this(
-                video.getOriginalFilename(),
-                video.getContentType(),
-                video.getSizeBytes(),
-                video.getStatus(),
-                video.getCreatedAt(),
-                video.getUpdatedAt()
-        );
-    }
-}
+         LocalDateTime updatedAt,
+         URL thumbnailUrl
+) {}

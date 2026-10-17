@@ -1,7 +1,9 @@
 package com.bsf.vcloud.sevice;
 
 import com.bsf.vcloud.adapter.StorageAdapter;
+import com.bsf.vcloud.dtos.thumb.ThumbDTO;
 import com.bsf.vcloud.dtos.upload.CompletedUploadDTO;
+import com.bsf.vcloud.dtos.upload.MultipartUploadResponse;
 import com.bsf.vcloud.dtos.upload.PresignedUploadResponse;
 import com.bsf.vcloud.dtos.video.VideoRequestDTO;
 import com.bsf.vcloud.dtos.video.VideoResponseDTO;
@@ -40,62 +42,132 @@ public class VideoService {
         this.storageAdapter = storageAdapter;
     }
 
-    @Deprecated
-    public VideoResponseDTO uploadVideo(MultipartFile file, UUID  userId)  {
+//    @Deprecated
+//    public VideoResponseDTO uploadVideo(MultipartFile file, UUID  userId)  {
+//
+//        if (file == null || file.getOriginalFilename() == null || file.getContentType() == null)
+//            throw new IllegalArgumentException("Invalid file");
+//
+//        if(!file.getOriginalFilename().endsWith(".mp4") || !"video/mp4".equals(file.getContentType()))
+//            throw new VideoUploadException("Only .mp4 files are allowed");
+//
+//        Users user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+//
+//        Video video = new Video();
+//        video.setUser(user);
+//        video.setContentType(file.getContentType());
+//        video.setOriginalFilename(file.getOriginalFilename());
+//        video.setSizeBytes(file.getSize());
+//
+//        Video videoSaved = videoRepository.save(video);
+//
+//        try{
+//            String keyName = storageAdapter.uploadVideo(file, videoSaved.getId());
+//            videoSaved.setKeyName(keyName);
+//            videoSaved.setStatus(VideoStatus.READY);
+//            videoRepository.save(videoSaved);
+//
+//            return new VideoResponseDTO(videoSaved);
+//        }catch (Exception e){
+//            videoSaved.setStatus(VideoStatus.FAILED);
+//            videoRepository.save(videoSaved);
+//            throw new VideoUploadException("Failed to upload video", e);
+//        }
+//    }
 
-        if (file == null || file.getOriginalFilename() == null || file.getContentType() == null)
-            throw new IllegalArgumentException("Invalid file");
-
-        if(!file.getOriginalFilename().endsWith(".mp4") || !"video/mp4".equals(file.getContentType()))
-            throw new VideoUploadException("Only .mp4 files are allowed");
-
-        Users user = userRepository.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
-
-        Video video = new Video();
-        video.setUser(user);
-        video.setContentType(file.getContentType());
-        video.setOriginalFilename(file.getOriginalFilename());
-        video.setSizeBytes(file.getSize());
-
-        Video videoSaved = videoRepository.save(video);
-
-        try{
-            String keyName = storageAdapter.uploadVideo(file, videoSaved.getId());
-            videoSaved.setKeyName(keyName);
-            videoSaved.setStatus(VideoStatus.READY);
-            videoRepository.save(videoSaved);
-
-            return new VideoResponseDTO(videoSaved);
-        }catch (Exception e){
-            videoSaved.setStatus(VideoStatus.FAILED);
-            videoRepository.save(videoSaved);
-            throw new VideoUploadException("Failed to upload video", e);
-        }
-    }
-
+    //TODO: Add pagination and sorting and cache
     public List<VideoResponseDTO> getVideosByUserId(UUID userId) {
 
         if(!userRepository.existsById(userId)){
             throw new ResourceNotFoundException("User not found");
         }
+        List<Video> videos = videoRepository.findByUserId(userId);
+        return videos.stream()
+                .map(video -> {
+                    URL thumbnailUrl = null;
 
-        return videoRepository.findByUserId(userId).stream()
-                .map(VideoResponseDTO::new)
+                    if (video.getThumbnailKey() != null) {
+                        thumbnailUrl = storageAdapter.generateThumbnailViewUrl(video.getThumbnailKey().toString());
+                    }
+
+                    return VideoMapper.toDto(video, thumbnailUrl);
+                })
                 .toList();
     }
 
 
-    public void deleteVideo(String keyName, UUID userId){
-        Video video = videoRepository.findByKeyName(keyName).orElseThrow(() -> new ResourceNotFoundException("Video Not Found")) ;
+    public void deleteVideo(UUID videoId, UUID userId){
+        Video video = videoRepository.findById(videoId).orElseThrow(() -> new ResourceNotFoundException("Video Not Found")) ;
         if (!video.getUser().getId().equals(userId)){
             throw new UnauthorizedActionException("You are not authorized to delete this video");
         }
-
+        if(!video.getStatus().equals(VideoStatus.READY)){
+            videoRepository.delete(video);
+            return;
+        }
         try {
-            storageAdapter.deleteVideo(keyName);
+            storageAdapter.deleteVideo(video.getKeyName());
             videoRepository.delete(video);
         }catch (StorageException e){
             throw new VideoUploadException("Failed to delete video from storage", e);
+        }
+    }
+
+    public String multipartUpload(VideoRequestDTO videoRequestDTO, UUID userId)  {
+
+        if (videoRequestDTO == null || videoRequestDTO.contentType() == null || videoRequestDTO.originalFilename() == null)
+            throw new IllegalArgumentException("Invalid file");
+
+        if(!videoRequestDTO.originalFilename().endsWith(".mp4") || !"video/mp4".equals(videoRequestDTO.contentType()))
+            throw new VideoUploadException("Only .mp4 files are allowed");
+
+
+        Users user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        Video video = VideoMapper.toEntity(videoRequestDTO);
+        video.setUser(user);
+        videoRepository.save(video);
+
+        String uploadId = storageAdapter.startMultipartUpload(video);
+        video.setUploadId(uploadId);
+        video.setThumbnailKey("thumbnails/" + video.getId() + ".jpg");
+
+        videoRepository.save(video);
+
+        return uploadId;
+    }
+
+    public MultipartUploadResponse generateMultipartPresignedUrl(String uploadId, Integer partQuantity, VideoRequestDTO videoRequestDTO)  {
+
+        Video video = videoRepository.findByUploadId(uploadId)
+                .orElseThrow(() -> new ResourceNotFoundException("Video not found"));
+
+       List<URL> presignedUrls = new ArrayList<>();
+       for (int i = 1; i <= partQuantity; i++) {
+            presignedUrls.add(storageAdapter.generateMultipartPresignedUrl(uploadId, i, video));
+        }
+
+        ThumbDTO thumb = new ThumbDTO(video.getThumbnailKey(), videoRequestDTO.thumb().contentType(), videoRequestDTO.thumb().sizeBytes());
+        return new MultipartUploadResponse(storageAdapter.generateSinglePresignedUrl(thumb), presignedUrls);
+    }
+
+    @Transactional
+    public VideoResponseDTO completeMultipartUpload(CompletedUploadDTO dto)  {
+        Video video = videoRepository.findByUploadId(dto.uploadId()).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
+
+        List<CompletedPart> completedParts = dto.parts().stream()
+                .map(p -> CompletedPart.builder().partNumber(p.partNumber()).eTag(p.eTag()).build())
+                .collect(Collectors.toList());
+
+        try {
+            storageAdapter.completeMultipartUpload(dto.uploadId(), video, completedParts);
+            video.setStatus(VideoStatus.READY);
+            videoRepository.save(video);
+            return VideoMapper.toDto(video);
+        }catch (StorageException e){
+            video.setStatus(VideoStatus.FAILED);
+            video.setThumbnailKey(null);
+            videoRepository.save(video);
+            throw e;
         }
     }
 
@@ -119,73 +191,20 @@ public class VideoService {
         video.setSizeBytes(videoRequestDTO.sizeBytes());
 
         videoRepository.save(video);
+        video.setThumbnailKey("thumbnails/" + video.getId() + ".jpg");
+        ThumbDTO thumb = new ThumbDTO(video.getThumbnailKey(), videoRequestDTO.thumb().contentType(), videoRequestDTO.thumb().sizeBytes());
         try {
-            URL url = storageAdapter.generateSinglePresignedUrl(video);
-            return new PresignedUploadResponse(video.getId(),url);
+            URL urlVideo = storageAdapter.generateSinglePresignedUrl(video);
+            URL urlThumb = storageAdapter.generateSinglePresignedUrl(thumb);
+            videoRepository.save(video);
+            return new PresignedUploadResponse(video.getId(),urlVideo, urlThumb);
         }catch (StorageException e){
             video.setStatus(VideoStatus.FAILED);
+            video.setThumbnailKey(null);
             videoRepository.save(video);
             throw e;
         }
-
     }
-
-
-    public String multipartUpload(VideoRequestDTO videoRequestDTO, UUID userId)  {
-
-        if (videoRequestDTO == null || videoRequestDTO.contentType() == null || videoRequestDTO.originalFilename() == null)
-            throw new IllegalArgumentException("Invalid file");
-
-        if(!videoRequestDTO.originalFilename().endsWith(".mp4") || !"video/mp4".equals(videoRequestDTO.contentType()))
-            throw new VideoUploadException("Only .mp4 files are allowed");
-
-
-        Users user = userRepository.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        Video video = VideoMapper.toEntity(videoRequestDTO);
-        video.setUser(user);
-        videoRepository.save(video);
-
-        String uploadId = storageAdapter.startMultipartUpload(video);
-        video.setUploadId(uploadId);
-
-        videoRepository.save(video);
-
-        return uploadId;
-    }
-
-    public List<URL> generateMultipartPresignedUrl(String uploadId, Integer partQuantity, VideoRequestDTO videoRequestDTO)  {
-
-        Video video = videoRepository.findByUploadId(uploadId)
-                .orElseThrow(() -> new ResourceNotFoundException("Video not found"));
-
-       List<URL> presignedUrls = new ArrayList<>();
-       for (int i = 1; i <= partQuantity; i++) {
-            presignedUrls.add(storageAdapter.generateMultipartPresignedUrl(uploadId, i, video));
-        }
-
-        return presignedUrls;
-    }
-
-    @Transactional
-    public VideoResponseDTO completeMultipartUpload(CompletedUploadDTO dto)  {
-        Video video = videoRepository.findByUploadId(dto.uploadId()).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
-
-        List<CompletedPart> completedParts = dto.parts().stream()
-                .map(p -> CompletedPart.builder().partNumber(p.partNumber()).eTag(p.eTag()).build())
-                .collect(Collectors.toList());
-
-        try {
-            storageAdapter.completeMultipartUpload(dto.uploadId(), video, completedParts);
-            video.setStatus(VideoStatus.READY);
-            videoRepository.save(video);
-            return VideoMapper.toDto(video);
-        }catch (StorageException e){
-            video.setStatus(VideoStatus.FAILED);
-            videoRepository.save(video);
-            throw  e;
-        }
-    }
-
 
     @Transactional
     public VideoResponseDTO completeSinglePartUpload(UUID videoId)  {
@@ -199,7 +218,7 @@ public class VideoService {
 
     }
 
-    public URL generateDownload(UUID videoId, String keyName, UUID userId) {
+    public URL generateDownload(UUID videoId, UUID userId) {
 
         Video video = videoRepository.findById(videoId).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
 
@@ -207,9 +226,13 @@ public class VideoService {
             throw new VideoUploadException("You are not authorized to download this video");
         }
 
-        if (!video.getKeyName().equals(keyName)){
-            throw new VideoUploadException("Key name does not match with video");
+        if(!video.getStatus().equals(VideoStatus.READY)){
+            throw new VideoUploadException("The video are not upload successfully");
         }
+
+//        if (!video.getKeyName().equals(keyName)){
+//            throw new VideoUploadException("Key name does not match with video");
+//        }
 
         return storageAdapter.generateDownloadUrl(video);
 

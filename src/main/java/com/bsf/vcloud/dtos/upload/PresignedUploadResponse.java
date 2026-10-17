@@ -5,6 +5,6 @@ import java.util.UUID;
 
 public record PresignedUploadResponse(
         UUID videoId,
-        URL uploadUrl
-) {
-}
+        URL videoUploadUrl,
+        URL thumbUploadUrl
+) {}

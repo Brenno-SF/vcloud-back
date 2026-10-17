@@ -1,5 +1,6 @@
 package com.bsf.vcloud.adapter;
 
+import com.bsf.vcloud.dtos.thumb.ThumbDTO;
 import com.bsf.vcloud.entity.Video;
 import com.bsf.vcloud.exceptions.StorageException;
 import com.bsf.vcloud.exceptions.VideoUploadException;
@@ -69,7 +70,6 @@ public class StorageAdapter implements StoragePort {
                     .contentLength(video.getSizeBytes())
                     .build();
 
-
             PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
                     .signatureDuration(java.time.Duration.ofMinutes(15))
                     .putObjectRequest(putObjectRequest)
@@ -78,6 +78,33 @@ public class StorageAdapter implements StoragePort {
             return s3Presigner.presignPutObject(presignRequest).url();
         }catch(SdkException e){
             log.error("Failed to generate presigned URL for video {}: {}", video.getId(), e.getMessage());
+            throw new StorageException("Failed to generate presigned URL", e);
+        }
+    }
+
+    @Override
+    public URL generateSinglePresignedUrl(ThumbDTO thumb) {
+
+        try{
+            AwsRequestOverrideConfiguration overrideConfig = AwsRequestOverrideConfiguration.builder()
+                    .putRawQueryParameter("x-amz-acl", "public-read")
+                    .build();
+
+            PutObjectRequest putObjectRequest = PutObjectRequest.builder()
+                    .bucket(bucketName)
+                    .key(thumb.keyName())
+                    .contentType(thumb.contentType())
+                    .contentLength(thumb.sizeBytes())
+                    .build();
+
+            PutObjectPresignRequest presignRequest = PutObjectPresignRequest.builder()
+                    .signatureDuration(java.time.Duration.ofMinutes(15))
+                    .putObjectRequest(putObjectRequest)
+                    .build();
+
+            return s3Presigner.presignPutObject(presignRequest).url();
+        }catch(SdkException e){
+            log.error("Failed to generate presigned URL for thumb {}: {}", thumb.keyName(), e.getMessage());
             throw new StorageException("Failed to generate presigned URL", e);
         }
     }
@@ -152,10 +179,7 @@ public class StorageAdapter implements StoragePort {
                     e
             );
 
-            throw new StorageException(
-                    "Multipart upload does not exist or has already been completed",
-                    e
-            );
+            throw new StorageException("Multipart upload does not exist or has already been completed",e);
 
         } catch (S3Exception e) {
 
@@ -179,6 +203,7 @@ public class StorageAdapter implements StoragePort {
             GetObjectRequest objectRequest = GetObjectRequest.builder()
                     .bucket(bucketName)
                     .key(video.getKeyName())
+                    .responseContentDisposition("attachment; filename=\"" + video.getOriginalFilename() + "\"")
                     .build();
 
             GetObjectPresignRequest presignRequest = GetObjectPresignRequest.builder()
@@ -282,5 +307,20 @@ public class StorageAdapter implements StoragePort {
         s3Client.abortMultipartUpload(abortRequest);
     }
 
+    @Override
+    public URL generateThumbnailViewUrl(String thumbnailKey) {
+        GetObjectRequest getObjectRequest = GetObjectRequest.builder()
+                .bucket(bucketName)
+                .key(thumbnailKey)
+                .build();
+
+        GetObjectPresignRequest presignRequest =
+                GetObjectPresignRequest.builder()
+                        .signatureDuration(Duration.ofMinutes(30))
+                        .getObjectRequest(getObjectRequest)
+                        .build();
+
+        return s3Presigner.presignGetObject(presignRequest).url();
+    }
     //return String.format("https://%s.s3.%s.amazonaws.com/%s", bucketName, region, keyName);
 }

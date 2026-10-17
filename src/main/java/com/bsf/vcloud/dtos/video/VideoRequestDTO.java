@@ -1,10 +1,12 @@
 package com.bsf.vcloud.dtos.video;
 
-import com.bsf.vcloud.entity.Video;
+import com.bsf.vcloud.dtos.thumb.ThumbDTO;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 
 public record VideoRequestDTO(
         @NotBlank  String originalFilename,
         @NotBlank String contentType,
-        @NotBlank Long sizeBytes
+        @NotNull Long sizeBytes,
+        ThumbDTO thumb
 ) {}
