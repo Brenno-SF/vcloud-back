@@ -18,8 +18,9 @@ import com.bsf.vcloud.mapper.VideoMapper;
 import com.bsf.vcloud.repository.UserRepository;
 import com.bsf.vcloud.repository.VideoRepository;
 import jakarta.transaction.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 import software.amazon.awssdk.services.s3.model.CompletedPart;
 
 import java.net.URL;
@@ -75,7 +76,8 @@ public class VideoService {
 //        }
 //    }
 
-    //TODO: Add pagination and sorting and cache
+    //TODO: Add pagination and sorting
+    @Cacheable(cacheNames = "userVideos", key = "#userId")
     public List<VideoResponseDTO> getVideosByUserId(UUID userId) {
 
         if(!userRepository.existsById(userId)){
@@ -95,7 +97,7 @@ public class VideoService {
                 .toList();
     }
 
-
+    @CacheEvict(value = "userVideos", key = "#userId")
     public void deleteVideo(UUID videoId, UUID userId){
         Video video = videoRepository.findById(videoId).orElseThrow(() -> new ResourceNotFoundException("Video Not Found")) ;
         if (!video.getUser().getId().equals(userId)){
@@ -151,6 +153,7 @@ public class VideoService {
     }
 
     @Transactional
+    @CacheEvict(value = "userVideos", key = "#userId")
     public VideoResponseDTO completeMultipartUpload(CompletedUploadDTO dto)  {
         Video video = videoRepository.findByUploadId(dto.uploadId()).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
 
@@ -207,6 +210,7 @@ public class VideoService {
     }
 
     @Transactional
+    @CacheEvict(value = "userVideos", key = "#userId")
     public VideoResponseDTO completeSinglePartUpload(UUID videoId)  {
         Video video = videoRepository.findById(videoId).orElseThrow(() -> new ResourceNotFoundException("Video not found"));
 

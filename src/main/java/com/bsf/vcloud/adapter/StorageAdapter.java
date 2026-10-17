@@ -7,6 +7,7 @@ import com.bsf.vcloud.exceptions.VideoUploadException;
 import com.bsf.vcloud.ports.StoragePort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -308,6 +309,8 @@ public class StorageAdapter implements StoragePort {
     }
 
     @Override
+    @Cacheable(cacheNames = "thumbnailUrls",
+               key = "#thumbnailKey")
     public URL generateThumbnailViewUrl(String thumbnailKey) {
         GetObjectRequest getObjectRequest = GetObjectRequest.builder()
                 .bucket(bucketName)

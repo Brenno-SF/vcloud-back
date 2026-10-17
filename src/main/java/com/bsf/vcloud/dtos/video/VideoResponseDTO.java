@@ -1,8 +1,8 @@
 package com.bsf.vcloud.dtos.video;
 
-import com.bsf.vcloud.entity.Video;
 import com.bsf.vcloud.enums.VideoStatus;
 
+import java.io.Serializable;
 import java.net.URL;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -16,4 +16,4 @@ public record VideoResponseDTO(
          LocalDateTime createdAt,
          LocalDateTime updatedAt,
          URL thumbnailUrl
-) {}
+) implements Serializable {}

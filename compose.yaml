@@ -12,6 +12,15 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql
 
+  redis:
+    image: redis:8-alpine
+    container_name: vcloud_redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    # Sem portas públicas: o vcloud acessa pela rede interna.
+
   vcloud:
     build:
       context: .
@@ -25,6 +34,9 @@ services:
       DB_PASSWORD: ${DB_PASSWORD}
       DB_NAME: ${DB_NAME}
       DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
 
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
