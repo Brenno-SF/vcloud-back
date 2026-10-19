@@ -3,6 +3,7 @@ package com.bsf.vcloud.controller;
 import com.bsf.vcloud.dtos.upload.CompletedUploadDTO;
 import com.bsf.vcloud.dtos.upload.MultipartUploadResponse;
 import com.bsf.vcloud.dtos.upload.PresignedUploadResponse;
+import com.bsf.vcloud.dtos.video.VideoFilterRequest;
 import com.bsf.vcloud.dtos.video.VideoRequestDTO;
 import com.bsf.vcloud.dtos.video.VideoResponseDTO;
 import com.bsf.vcloud.sevice.VideoService;
@@ -41,8 +42,8 @@ public class VideoController {
 
     @GetMapping()
     @ResponseStatus(HttpStatus.OK)
-    public Page<VideoResponseDTO> getVideos(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, @AuthenticationPrincipal Jwt jwt) {
-        return videoService.getVideosByUserId(UUID.fromString(jwt.getClaimAsString("userId")), PageRequest.of(page, size));
+    public Page<VideoResponseDTO> getVideos(@RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size, VideoFilterRequest filterRequest, @AuthenticationPrincipal Jwt jwt) {
+        return videoService.getVideosByUserId(UUID.fromString(jwt.getClaimAsString("userId")), PageRequest.of(page, size), filterRequest);
     }
 
     @PostMapping("/upload-single-presigned-url")

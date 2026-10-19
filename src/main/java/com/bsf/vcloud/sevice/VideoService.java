@@ -5,6 +5,7 @@ import com.bsf.vcloud.dtos.thumb.ThumbDTO;
 import com.bsf.vcloud.dtos.upload.CompletedUploadDTO;
 import com.bsf.vcloud.dtos.upload.MultipartUploadResponse;
 import com.bsf.vcloud.dtos.upload.PresignedUploadResponse;
+import com.bsf.vcloud.dtos.video.VideoFilterRequest;
 import com.bsf.vcloud.dtos.video.VideoRequestDTO;
 import com.bsf.vcloud.dtos.video.VideoResponseDTO;
 import com.bsf.vcloud.entity.Users;
@@ -17,6 +18,7 @@ import com.bsf.vcloud.exceptions.VideoUploadException;
 import com.bsf.vcloud.mapper.VideoMapper;
 import com.bsf.vcloud.repository.UserRepository;
 import com.bsf.vcloud.repository.VideoRepository;
+import com.bsf.vcloud.specification.VideoSpecification;
 import jakarta.transaction.Transactional;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -79,13 +81,17 @@ public class VideoService {
 //    }
 
     //TODO: Add and sorting
-    // @Cacheable(cacheNames = "userVideos", key = "#userId + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort")
-    public Page<VideoResponseDTO> getVideosByUserId(UUID userId, Pageable pageable) {
+    @Cacheable(cacheNames = "userVideos", key = "#userId + '-' + #pageable.pageNumber + '-' + #pageable.pageSize + '-' + #pageable.sort + '-' + #filter")
+    public Page<VideoResponseDTO> getVideosByUserId(UUID userId, Pageable pageable, VideoFilterRequest filter) {
+
+        if (userId == null) {
+            throw new IllegalArgumentException("userId não pode ser null");
+        }
 
         if(!userRepository.existsById(userId)){
             throw new ResourceNotFoundException("User not found");
         }
-        Page<Video> videos = videoRepository.findByUserId(userId, pageable);
+        Page<Video> videos = videoRepository.findAll(VideoSpecification.withFilter(userId, filter), pageable);
 
         return videos.map(video -> {
             URL thumbnailUrl = null;
